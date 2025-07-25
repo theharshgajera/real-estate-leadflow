@@ -9,6 +9,10 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
+import AdminLeads from "./pages/AdminLeads";
+import AdminUsers from "./pages/AdminUsers";
+import UserLeads from "./pages/UserLeads";
+import UserTasks from "./pages/UserTasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -78,6 +82,38 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <UserDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/leads" 
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLeads />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/users" 
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminUsers />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/leads" 
+          element={
+            <ProtectedRoute>
+              <UserLeads />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/tasks" 
+          element={
+            <ProtectedRoute>
+              <UserTasks />
             </ProtectedRoute>
           } 
         />
