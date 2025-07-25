@@ -26,6 +26,13 @@ interface Lead {
   followup_date: string;
   buying_date: string;
   created_at: string;
+  site_visits?: {
+    id: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    notes: string;
+    completed: boolean;
+  }[];
 }
 
 const UserLeads = () => {
@@ -51,7 +58,16 @@ const UserLeads = () => {
     try {
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          site_visits(
+            id,
+            scheduled_date,
+            scheduled_time,
+            notes,
+            completed
+          )
+        `)
         .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
@@ -224,6 +240,27 @@ const UserLeads = () => {
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       <strong>Expected purchase:</strong> {new Date(lead.buying_date).toLocaleDateString()}
+                    </div>
+                  )}
+                  {lead.status === 'site_visit_scheduled' && lead.site_visits && lead.site_visits.length > 0 && (
+                    <div className="col-span-2 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-purple-800">
+                        <Calendar className="h-4 w-4" />
+                        <strong>Site Visit Scheduled</strong>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-purple-700">
+                        <div>
+                          <strong>Date:</strong> {new Date(lead.site_visits[0].scheduled_date).toLocaleDateString()}
+                        </div>
+                        <div>
+                          <strong>Time:</strong> {lead.site_visits[0].scheduled_time}
+                        </div>
+                        {lead.site_visits[0].notes && (
+                          <div className="col-span-2">
+                            <strong>Notes:</strong> {lead.site_visits[0].notes}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

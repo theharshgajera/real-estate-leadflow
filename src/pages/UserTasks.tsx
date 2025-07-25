@@ -4,13 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar, CheckCircle, Clock, MapPin, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Clock, CheckCircle, Calendar } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -18,57 +13,57 @@ interface Task {
   task_date: string;
   task_time: string;
   completed: boolean;
-  created_at: string;
   lead_id: string;
   leads?: {
     name: string;
+    email: string;
     mobile: string;
     city: string;
   };
 }
 
-interface Lead {
+interface SiteVisit {
   id: string;
-  name: string;
-  mobile: string;
-  city: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  notes: string;
+  completed: boolean;
+  lead_id: string;
+  leads?: {
+    name: string;
+    email: string;
+    mobile: string;
+    city: string;
+  };
 }
 
 const UserTasks = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [siteVisits, setSiteVisits] = useState<SiteVisit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const { toast } = useToast();
-
-  const [newTask, setNewTask] = useState({
-    task_type: '',
-    task_date: new Date().toISOString().split('T')[0],
-    task_time: '',
-    lead_id: ''
-  });
 
   useEffect(() => {
     if (user) {
       fetchTasks();
-      fetchMyLeads();
+      fetchTodaysSiteVisits();
     }
-  }, [user, selectedDate]);
+  }, [user]);
 
   const fetchTasks = async () => {
     if (!user) return;
 
     try {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('tasks')
         .select(`
           *,
-          leads:lead_id(name, mobile, city)
+          leads(name, email, mobile, city)
         `)
         .eq('user_id', user.id)
-        .eq('task_date', selectedDate)
+        .eq('task_date', today)
         .order('task_time', { ascending: true });
 
       if (error) throw error;
@@ -80,49 +75,32 @@ const UserTasks = () => {
     }
   };
 
-  const fetchMyLeads = async () => {
+  const fetchTodaysSiteVisits = async () => {
     if (!user) return;
 
     try {
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
-        .from('leads')
-        .select('id, name, mobile, city')
-        .eq('assigned_to', user.id)
-        .neq('status', 'converted')
-        .neq('status', 'lost');
+        .from('site_visits')
+        .select(`
+          *,
+          leads!inner(
+            name, 
+            email, 
+            mobile, 
+            city,
+            assigned_to
+          )
+        `)
+        .eq('leads.assigned_to', user.id)
+        .eq('scheduled_date', today)
+        .eq('completed', false)
+        .order('scheduled_time', { ascending: true });
 
       if (error) throw error;
-      setLeads(data || []);
+      setSiteVisits(data || []);
     } catch (error) {
-      console.error('Error fetching leads:', error);
-    }
-  };
-
-  const createTask = async () => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .insert([{
-          ...newTask,
-          user_id: user.id
-        }]);
-
-      if (error) throw error;
-
-      toast({ title: 'Task created successfully' });
-      setIsCreateOpen(false);
-      setNewTask({
-        task_type: '',
-        task_date: new Date().toISOString().split('T')[0],
-        task_time: '',
-        lead_id: ''
-      });
-      fetchTasks();
-    } catch (error) {
-      console.error('Error creating task:', error);
-      toast({ title: 'Error creating task', variant: 'destructive' });
+      console.error('Error fetching site visits:', error);
     }
   };
 
@@ -137,22 +115,38 @@ const UserTasks = () => {
 
       toast({ title: completed ? 'Task marked as incomplete' : 'Task completed!' });
       fetchTasks();
+      fetchTodaysSiteVisits();
     } catch (error) {
       console.error('Error updating task:', error);
       toast({ title: 'Error updating task', variant: 'destructive' });
     }
   };
 
-  const formatTime = (time: string) => {
-    if (!time) return '';
-    return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
+  const completeSiteVisit = async (siteVisitId: string) => {
+    try {
+      const { error } = await supabase
+        .from('site_visits')
+        .update({ completed: true })
+        .eq('id', siteVisitId);
 
-  const completedTasks = tasks.filter(task => task.completed);
-  const pendingTasks = tasks.filter(task => !task.completed);
+      if (error) throw error;
+
+      // Update lead status to 'site_visit_done'
+      const siteVisit = siteVisits.find(sv => sv.id === siteVisitId);
+      if (siteVisit) {
+        await supabase
+          .from('leads')
+          .update({ status: 'site_visit_done' })
+          .eq('id', siteVisit.lead_id);
+      }
+
+      toast({ title: 'Site visit completed successfully!' });
+      fetchTodaysSiteVisits();
+    } catch (error) {
+      console.error('Error completing site visit:', error);
+      toast({ title: 'Error completing site visit', variant: 'destructive' });
+    }
+  };
 
   if (loading) {
     return <div className="text-center py-8">Loading your tasks...</div>;
@@ -162,163 +156,148 @@ const UserTasks = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Today's Tasks</h1>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Task</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="task_type">Task Type</Label>
-                <Select value={newTask.task_type} onValueChange={(value) => setNewTask({...newTask, task_type: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select task type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="call">Call</SelectItem>
-                    <SelectItem value="meeting">Meeting</SelectItem>
-                    <SelectItem value="site_visit">Site Visit</SelectItem>
-                    <SelectItem value="follow_up">Follow Up</SelectItem>
-                    <SelectItem value="documentation">Documentation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="lead_id">Related Lead</Label>
-                <Select value={newTask.lead_id} onValueChange={(value) => setNewTask({...newTask, lead_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select lead" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leads.map((lead) => (
-                      <SelectItem key={lead.id} value={lead.id}>
-                        {lead.name} - {lead.city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="task_date">Date</Label>
-                <Input
-                  id="task_date"
-                  type="date"
-                  value={newTask.task_date}
-                  onChange={(e) => setNewTask({...newTask, task_date: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="task_time">Time</Label>
-                <Input
-                  id="task_time"
-                  type="time"
-                  value={newTask.task_time}
-                  onChange={(e) => setNewTask({...newTask, task_time: e.target.value})}
-                />
-              </div>
-            </div>
-            <Button onClick={createTask} className="w-full">Create Task</Button>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Label htmlFor="date">Select Date:</Label>
-        <Input
-          id="date"
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-48"
-        />
         <div className="text-sm text-muted-foreground">
-          {pendingTasks.length} pending, {completedTasks.length} completed
+          {new Date().toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Pending Tasks */}
+      {/* Site Visits Section */}
+      {siteVisits.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-yellow-500" />
-            Pending Tasks ({pendingTasks.length})
+          <h2 className="text-xl font-semibold text-purple-800 flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Site Visits Today ({siteVisits.length})
           </h2>
-          {pendingTasks.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No pending tasks for this date
-              </CardContent>
-            </Card>
-          ) : (
-            pendingTasks.map((task) => (
-              <Card key={task.id}>
-                <CardHeader className="pb-3">
+          <div className="grid gap-4">
+            {siteVisits.map((visit) => (
+              <Card key={visit.id} className="border-purple-200">
+                <CardHeader>
                   <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={task.completed}
-                        onCheckedChange={() => toggleTaskCompletion(task.id, task.completed)}
-                      />
-                      <CardTitle className="text-base">{task.task_type.replace('_', ' ')}</CardTitle>
-                      <Badge variant="outline">{formatTime(task.task_time)}</Badge>
+                    <div>
+                      <CardTitle className="text-lg text-purple-800">{visit.leads?.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-4 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {visit.scheduled_time}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {visit.leads?.city}
+                        </span>
+                      </CardDescription>
                     </div>
+                    <Badge className="bg-purple-500">Site Visit</Badge>
                   </div>
-                  {task.leads && (
-                    <CardDescription>
-                      {task.leads.name} - {task.leads.mobile} - {task.leads.city}
-                    </CardDescription>
-                  )}
                 </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Contact:</strong> {visit.leads?.mobile}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {visit.leads?.email || 'Not provided'}
+                      </div>
+                    </div>
+                    {visit.notes && (
+                      <div className="text-sm">
+                        <strong>Notes:</strong> {visit.notes}
+                      </div>
+                    )}
+                    <Button 
+                      onClick={() => completeSiteVisit(visit.id)}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Mark Site Visit Complete
+                    </Button>
+                  </div>
+                </CardContent>
               </Card>
-            ))
-          )}
+            ))}
+          </div>
         </div>
+      )}
 
-        {/* Completed Tasks */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            Completed Tasks ({completedTasks.length})
-          </h2>
-          {completedTasks.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No completed tasks for this date
-              </CardContent>
-            </Card>
-          ) : (
-            completedTasks.map((task) => (
-              <Card key={task.id} className="opacity-75">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={task.completed}
-                        onCheckedChange={() => toggleTaskCompletion(task.id, task.completed)}
-                      />
-                      <CardTitle className="text-base line-through">{task.task_type.replace('_', ' ')}</CardTitle>
-                      <Badge variant="outline">{formatTime(task.task_time)}</Badge>
+      {/* Regular Tasks Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Other Tasks ({tasks.length})
+        </h2>
+        <div className="grid gap-4">
+          {tasks.map((task) => (
+            <Card key={task.id} className={task.completed ? "opacity-75" : ""}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className={`text-lg ${task.completed ? 'line-through' : ''}`}>
+                      {task.task_type.replace('_', ' ')}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-4 mt-1">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {task.task_time}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {task.leads?.name}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {task.leads?.city}
+                      </span>
+                    </CardDescription>
+                  </div>
+                  <Badge variant={task.completed ? "secondary" : "default"}>
+                    {task.completed ? 'Completed' : 'Pending'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <strong>Contact:</strong> {task.leads?.mobile}
+                    </div>
+                    <div>
+                      <strong>Email:</strong> {task.leads?.email || 'Not provided'}
                     </div>
                   </div>
-                  {task.leads && (
-                    <CardDescription>
-                      {task.leads.name} - {task.leads.mobile} - {task.leads.city}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-              </Card>
-            ))
-          )}
+                  <Button 
+                    onClick={() => toggleTaskCompletion(task.id, task.completed)}
+                    variant={task.completed ? "outline" : "default"}
+                    className="w-full"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+        {tasks.length === 0 && siteVisits.length === 0 && (
+          <Card>
+            <CardContent className="text-center py-8">
+              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No tasks or site visits scheduled for today.</p>
+            </CardContent>
+          </Card>
+        )}
+        {tasks.length === 0 && siteVisits.length > 0 && (
+          <Card>
+            <CardContent className="text-center py-8">
+              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No other tasks scheduled for today.</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

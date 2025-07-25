@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, UserPlus, Upload, Edit, Download } from 'lucide-react';
+import { Plus, Search, UserPlus, Upload, Edit, Download, Calendar } from 'lucide-react';
 import BulkLeadUpload from '@/components/BulkLeadUpload';
 import UpdateLeadDialog from '@/components/UpdateLeadDialog';
 import DataExportDialog from '@/components/DataExportDialog';
@@ -25,6 +25,13 @@ interface Lead {
   assigned_to: string;
   created_at: string;
   profiles?: { full_name: string };
+  site_visits?: {
+    id: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    notes: string;
+    completed: boolean;
+  }[];
 }
 
 interface User {
@@ -63,7 +70,14 @@ const AdminLeads = () => {
         .from('leads')
         .select(`
           *,
-          profiles:assigned_to(full_name)
+          profiles:assigned_to(full_name),
+          site_visits(
+            id,
+            scheduled_date,
+            scheduled_time,
+            notes,
+            completed
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -320,6 +334,27 @@ const AdminLeads = () => {
                   <div>
                     <strong>Assigned to:</strong> {lead.profiles?.full_name || 'Unassigned'}
                   </div>
+                  {lead.status === 'site_visit_scheduled' && lead.site_visits && lead.site_visits.length > 0 && (
+                    <div className="col-span-2 bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                      <div className="flex items-center gap-2 text-purple-800 mb-2">
+                        <Calendar className="h-4 w-4" />
+                        <strong>Site Visit Scheduled</strong>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
+                        <div>
+                          <strong>Date:</strong> {new Date(lead.site_visits[0].scheduled_date).toLocaleDateString()}
+                        </div>
+                        <div>
+                          <strong>Time:</strong> {lead.site_visits[0].scheduled_time}
+                        </div>
+                        {lead.site_visits[0].notes && (
+                          <div className="col-span-2">
+                            <strong>Notes:</strong> {lead.site_visits[0].notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex gap-2">
