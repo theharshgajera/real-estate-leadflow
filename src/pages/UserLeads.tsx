@@ -6,11 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Phone, Mail, MapPin, Calendar } from 'lucide-react';
+import { Edit, Calendar, Search, Phone, Mail, MapPin } from 'lucide-react';
+import SiteVisitScheduleDialog from '@/components/SiteVisitScheduleDialog';
+import UpdateLeadDialog from '@/components/UpdateLeadDialog';
 
 interface Lead {
   id: string;
@@ -37,21 +36,8 @@ const UserLeads = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [isSiteVisitOpen, setIsSiteVisitOpen] = useState(false);
   const { toast } = useToast();
-
-  const [updateData, setUpdateData] = useState<{
-    status: 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost';
-    quality: 'hot' | 'warm' | 'cold' | '';
-    notes: string;
-    followup_date: string;
-    buying_date: string;
-  }>({
-    status: 'new',
-    quality: '',
-    notes: '',
-    followup_date: '',
-    buying_date: ''
-  });
 
   useEffect(() => {
     if (user) {
@@ -80,39 +66,32 @@ const UserLeads = () => {
 
   const openUpdateDialog = (lead: Lead) => {
     setSelectedLead(lead);
-    setUpdateData({
-      status: lead.status as 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost',
-      quality: (lead.quality as 'hot' | 'warm' | 'cold') || '',
-      notes: lead.notes || '',
-      followup_date: lead.followup_date || '',
-      buying_date: lead.buying_date || ''
-    });
     setIsUpdateOpen(true);
   };
 
-  const updateLead = async () => {
-    if (!selectedLead) return;
+  const handleStatusChange = (lead: Lead, newStatus: 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost') => {
+    if (newStatus === 'site_visit_scheduled') {
+      setSelectedLead(lead);
+      setIsSiteVisitOpen(true);
+    } else {
+      updateLeadStatus(lead.id, newStatus);
+    }
+  };
 
+  const updateLeadStatus = async (leadId: string, status: 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost') => {
     try {
-      const updatePayload = {
-        ...updateData,
-        quality: updateData.quality === '' ? null : updateData.quality
-      };
-      
       const { error } = await supabase
         .from('leads')
-        .update(updatePayload)
-        .eq('id', selectedLead.id);
+        .update({ status })
+        .eq('id', leadId);
 
       if (error) throw error;
 
-      toast({ title: 'Lead updated successfully' });
-      setIsUpdateOpen(false);
-      setSelectedLead(null);
+      toast({ title: 'Lead status updated' });
       fetchMyLeads();
     } catch (error) {
-      console.error('Error updating lead:', error);
-      toast({ title: 'Error updating lead', variant: 'destructive' });
+      console.error('Error updating lead status:', error);
+      toast({ title: 'Error updating lead status', variant: 'destructive' });
     }
   };
 
@@ -249,16 +228,38 @@ const UserLeads = () => {
                   )}
                 </div>
                 
-                {lead.notes && (
-                  <div className="text-sm">
-                    <strong>Notes:</strong> {lead.notes}
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <p><strong>Notes:</strong> {lead.notes || 'No notes added'}</p>
+                  {lead.followup_date && (
+                    <p><strong>Follow-up Date:</strong> {new Date(lead.followup_date).toLocaleDateString()}</p>
+                  )}
+                  {lead.buying_date && (
+                    <p><strong>Expected Buying Date:</strong> {new Date(lead.buying_date).toLocaleDateString()}</p>
+                  )}
+                </div>
                 
-                <div className="flex justify-end">
-                  <Button onClick={() => openUpdateDialog(lead)} variant="outline">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openUpdateDialog(lead)}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
                     Update Lead
                   </Button>
+                  
+                  <Select onValueChange={(status: 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost') => handleStatusChange(lead, status)}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Change status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="site_visit_scheduled">Site Visit Scheduled</SelectItem>
+                      <SelectItem value="site_visit_done">Site Visit Done</SelectItem>
+                      <SelectItem value="converted">Converted</SelectItem>
+                      <SelectItem value="lost">Lost</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -266,76 +267,20 @@ const UserLeads = () => {
         ))}
       </div>
 
-      <Dialog open={isUpdateOpen} onOpenChange={setIsUpdateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Update Lead: {selectedLead?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={updateData.status} onValueChange={(value: 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost') => setUpdateData({...updateData, status: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="site_visit_scheduled">Site Visit Scheduled</SelectItem>
-                  <SelectItem value="site_visit_done">Site Visit Done</SelectItem>
-                  <SelectItem value="converted">Converted</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <UpdateLeadDialog
+        lead={selectedLead}
+        isOpen={isUpdateOpen}
+        onOpenChange={setIsUpdateOpen}
+        onUpdateComplete={fetchMyLeads}
+      />
 
-            <div>
-              <Label htmlFor="quality">Quality</Label>
-              <Select value={updateData.quality || undefined} onValueChange={(value: 'hot' | 'warm' | 'cold' | '') => setUpdateData({...updateData, quality: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select quality" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hot">Hot</SelectItem>
-                  <SelectItem value="warm">Warm</SelectItem>
-                  <SelectItem value="cold">Cold</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="followup_date">Follow-up Date</Label>
-              <Input
-                id="followup_date"
-                type="date"
-                value={updateData.followup_date}
-                onChange={(e) => setUpdateData({...updateData, followup_date: e.target.value})}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="buying_date">Expected Purchase Date</Label>
-              <Input
-                id="buying_date"
-                type="date"
-                value={updateData.buying_date}
-                onChange={(e) => setUpdateData({...updateData, buying_date: e.target.value})}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={updateData.notes}
-                onChange={(e) => setUpdateData({...updateData, notes: e.target.value})}
-                placeholder="Add notes about this lead..."
-              />
-            </div>
-          </div>
-          <Button onClick={updateLead} className="w-full">Update Lead</Button>
-        </DialogContent>
-      </Dialog>
+      <SiteVisitScheduleDialog
+        leadId={selectedLead?.id || null}
+        leadName={selectedLead?.name || ''}
+        isOpen={isSiteVisitOpen}
+        onOpenChange={setIsSiteVisitOpen}
+        onScheduleComplete={fetchMyLeads}
+      />
     </div>
   );
 };
