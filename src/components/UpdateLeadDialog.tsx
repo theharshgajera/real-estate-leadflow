@@ -34,7 +34,7 @@ interface UpdateLeadDialogProps {
 const UpdateLeadDialog = ({ lead, isOpen, onOpenChange, onUpdateComplete }: UpdateLeadDialogProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    status: '',
+    status: 'new',
     quality: '',
     what_to_buy: '',
     budget: '',
@@ -47,7 +47,7 @@ const UpdateLeadDialog = ({ lead, isOpen, onOpenChange, onUpdateComplete }: Upda
   useEffect(() => {
     if (lead) {
       setFormData({
-        status: lead.status || '',
+        status: lead.status || 'new',
         quality: lead.quality || '',
         what_to_buy: lead.what_to_buy || '',
         budget: lead.budget || '',
@@ -67,7 +67,7 @@ const UpdateLeadDialog = ({ lead, isOpen, onOpenChange, onUpdateComplete }: Upda
         .from('leads')
         .update({
           status: formData.status as 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost',
-          quality: (formData.quality as 'hot' | 'warm' | 'cold') || null,
+          quality: formData.quality ? (formData.quality as 'hot' | 'warm' | 'cold') : null,
           what_to_buy: formData.what_to_buy || null,
           budget: formData.budget || null,
           professional_background: formData.professional_background || null,
@@ -115,7 +115,7 @@ const UpdateLeadDialog = ({ lead, isOpen, onOpenChange, onUpdateComplete }: Upda
           </div>
           <div>
             <Label htmlFor="quality">Quality</Label>
-            <Select value={formData.quality} onValueChange={(value) => setFormData({...formData, quality: value})}>
+            <Select value={formData.quality || undefined} onValueChange={(value) => setFormData({...formData, quality: value})}>
               <SelectTrigger>
                 <SelectValue placeholder="Select quality" />
               </SelectTrigger>
