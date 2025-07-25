@@ -291,12 +291,11 @@ const UserLeads = () => {
 
             <div>
               <Label htmlFor="quality">Quality</Label>
-              <Select value={updateData.quality} onValueChange={(value: 'hot' | 'warm' | 'cold' | '') => setUpdateData({...updateData, quality: value})}>
+              <Select value={updateData.quality || undefined} onValueChange={(value: 'hot' | 'warm' | 'cold' | '') => setUpdateData({...updateData, quality: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select quality" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   <SelectItem value="hot">Hot</SelectItem>
                   <SelectItem value="warm">Warm</SelectItem>
                   <SelectItem value="cold">Cold</SelectItem>
