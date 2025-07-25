@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Calendar, Search, Phone, Mail, MapPin, CalendarPlus } from 'lucide-react';
+import { Edit, Calendar, Search, Phone, Mail, MapPin, CalendarPlus, Plus } from 'lucide-react';
 import SiteVisitScheduleDialog from '@/components/SiteVisitScheduleDialog';
 import UpdateLeadDialog from '@/components/UpdateLeadDialog';
+import AddLeadDialog from '@/components/AddLeadDialog';
 
 interface Lead {
   id: string;
@@ -44,6 +45,7 @@ const UserLeads = () => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [isSiteVisitOpen, setIsSiteVisitOpen] = useState(false);
+  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -148,8 +150,14 @@ const UserLeads = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">My Leads</h1>
-        <div className="text-sm text-muted-foreground">
-          Total: {leads.length} leads
+        <div className="flex items-center gap-4">
+          <Button onClick={() => setIsAddLeadOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lead
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Total: {leads.length} leads
+          </div>
         </div>
       </div>
 
@@ -330,6 +338,12 @@ const UserLeads = () => {
         isOpen={isSiteVisitOpen}
         onOpenChange={setIsSiteVisitOpen}
         onScheduleComplete={fetchMyLeads}
+      />
+
+      <AddLeadDialog
+        isOpen={isAddLeadOpen}
+        onOpenChange={setIsAddLeadOpen}
+        onLeadAdded={fetchMyLeads}
       />
     </div>
   );
