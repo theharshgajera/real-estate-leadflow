@@ -51,6 +51,11 @@ const AdminLeads = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkAssignData, setBulkAssignData] = useState({
+    userId: '',
+    numberOfLeads: 1
+  });
   const { toast } = useToast();
 
   const [newLead, setNewLead] = useState({
@@ -179,6 +184,55 @@ const AdminLeads = () => {
     }
   };
 
+  const bulkAssignLeads = async () => {
+    try {
+      if (!bulkAssignData.userId || bulkAssignData.numberOfLeads < 1) {
+        toast({ title: 'Please select a user and valid number of leads', variant: 'destructive' });
+        return;
+      }
+
+      // Get new leads to assign
+      const { data: newLeads, error } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('status', 'new')
+        .is('assigned_to', null)
+        .limit(bulkAssignData.numberOfLeads);
+
+      if (error) throw error;
+
+      if (!newLeads || newLeads.length === 0) {
+        toast({ title: 'No new leads available to assign', variant: 'destructive' });
+        return;
+      }
+
+      const leadIds = newLeads.map(lead => lead.id);
+
+      // Assign the leads
+      const { error: updateError } = await supabase
+        .from('leads')
+        .update({ 
+          assigned_to: bulkAssignData.userId, 
+          status: 'in_progress' 
+        })
+        .in('id', leadIds);
+
+      if (updateError) throw updateError;
+
+      toast({ 
+        title: `Successfully assigned ${newLeads.length} leads`,
+        description: `Assigned ${newLeads.length} leads to the selected user.`
+      });
+      
+      setIsBulkAssignOpen(false);
+      setBulkAssignData({ userId: '', numberOfLeads: 1 });
+      fetchLeads();
+    } catch (error) {
+      console.error('Error bulk assigning leads:', error);
+      toast({ title: 'Error assigning leads', variant: 'destructive' });
+    }
+  };
+
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -213,6 +267,10 @@ const AdminLeads = () => {
           <Button onClick={() => setIsBulkUploadOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Bulk Upload
+          </Button>
+          <Button variant="outline" onClick={() => setIsBulkAssignOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Bulk Assign
           </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -289,6 +347,56 @@ const AdminLeads = () => {
         isOpen={isExportOpen}
         onOpenChange={setIsExportOpen}
       />
+
+      <Dialog open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Assign Leads</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="user-select">Select User</Label>
+              <Select 
+                value={bulkAssignData.userId} 
+                onValueChange={(value) => setBulkAssignData({...bulkAssignData, userId: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a user to assign leads to" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="number-of-leads">Number of Leads to Assign</Label>
+              <Input
+                id="number-of-leads"
+                type="number"
+                min="1"
+                value={bulkAssignData.numberOfLeads}
+                onChange={(e) => setBulkAssignData({...bulkAssignData, numberOfLeads: parseInt(e.target.value) || 1})}
+                placeholder="Enter number of leads"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This will assign the specified number of new leads to the selected user and change their status to "In Progress".
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsBulkAssignOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={bulkAssignLeads}>
+                Assign Leads
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex gap-4">
         <div className="flex-1">
