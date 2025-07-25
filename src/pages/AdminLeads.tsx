@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, UserPlus } from 'lucide-react';
+import { Plus, Search, UserPlus, Upload, Edit } from 'lucide-react';
+import BulkLeadUpload from '@/components/BulkLeadUpload';
+import UpdateLeadDialog from '@/components/UpdateLeadDialog';
 
 interface Lead {
   id: string;
@@ -36,17 +38,16 @@ const AdminLeads = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const { toast } = useToast();
 
   const [newLead, setNewLead] = useState({
     name: '',
     email: '',
     mobile: '',
-    city: '',
-    what_to_buy: '',
-    budget: '',
-    professional_background: '',
-    notes: ''
+    city: ''
   });
 
   useEffect(() => {
@@ -101,11 +102,7 @@ const AdminLeads = () => {
         name: '',
         email: '',
         mobile: '',
-        city: '',
-        what_to_buy: '',
-        budget: '',
-        professional_background: '',
-        notes: ''
+        city: ''
       });
       fetchLeads();
     } catch (error) {
@@ -174,24 +171,30 @@ const AdminLeads = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Leads</h1>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Lead
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsBulkUploadOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Upload
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Lead
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create New Lead</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Name *</Label>
                 <Input
                   id="name"
                   value={newLead.name}
                   onChange={(e) => setNewLead({...newLead, name: e.target.value})}
+                  required
                 />
               </div>
               <div>
@@ -204,58 +207,45 @@ const AdminLeads = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="mobile">Mobile</Label>
+                <Label htmlFor="mobile">Mobile *</Label>
                 <Input
                   id="mobile"
                   value={newLead.mobile}
                   onChange={(e) => setNewLead({...newLead, mobile: e.target.value})}
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="city">City</Label>
+                <Label htmlFor="city">City *</Label>
                 <Input
                   id="city"
                   value={newLead.city}
                   onChange={(e) => setNewLead({...newLead, city: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="what_to_buy">What to Buy</Label>
-                <Input
-                  id="what_to_buy"
-                  value={newLead.what_to_buy}
-                  onChange={(e) => setNewLead({...newLead, what_to_buy: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="budget">Budget</Label>
-                <Input
-                  id="budget"
-                  value={newLead.budget}
-                  onChange={(e) => setNewLead({...newLead, budget: e.target.value})}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="professional_background">Professional Background</Label>
-                <Input
-                  id="professional_background"
-                  value={newLead.professional_background}
-                  onChange={(e) => setNewLead({...newLead, professional_background: e.target.value})}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={newLead.notes}
-                  onChange={(e) => setNewLead({...newLead, notes: e.target.value})}
+                  required
                 />
               </div>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Additional details can be added later when the lead is in progress.
+            </p>
             <Button onClick={createLead} className="w-full">Create Lead</Button>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      <BulkLeadUpload
+        isOpen={isBulkUploadOpen}
+        onOpenChange={setIsBulkUploadOpen}
+        onUploadComplete={fetchLeads}
+      />
+
+      <UpdateLeadDialog
+        lead={selectedLead}
+        isOpen={isUpdateOpen}
+        onOpenChange={setIsUpdateOpen}
+        onUpdateComplete={fetchLeads}
+      />
 
       <div className="flex gap-4">
         <div className="flex-1">
@@ -322,6 +312,18 @@ const AdminLeads = () => {
                 </div>
                 
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedLead(lead);
+                      setIsUpdateOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Update Lead
+                  </Button>
+                  
                   <Select onValueChange={(userId) => assignLead(lead.id, userId)}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Assign to user" />
@@ -342,6 +344,8 @@ const AdminLeads = () => {
                     <SelectContent>
                       <SelectItem value="new">New</SelectItem>
                       <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="site_visit_scheduled">Site Visit Scheduled</SelectItem>
+                      <SelectItem value="site_visit_done">Site Visit Done</SelectItem>
                       <SelectItem value="converted">Converted</SelectItem>
                       <SelectItem value="lost">Lost</SelectItem>
                     </SelectContent>
