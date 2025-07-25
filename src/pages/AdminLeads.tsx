@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, UserPlus, Upload, Edit, Download, Calendar } from 'lucide-react';
+import { Plus, Search, UserPlus, Upload, Edit, Download, Calendar, Trash2 } from 'lucide-react';
 import BulkLeadUpload from '@/components/BulkLeadUpload';
 import UpdateLeadDialog from '@/components/UpdateLeadDialog';
 import DataExportDialog from '@/components/DataExportDialog';
@@ -158,6 +159,23 @@ const AdminLeads = () => {
     } catch (error) {
       console.error('Error updating lead status:', error);
       toast({ title: 'Error updating lead status', variant: 'destructive' });
+    }
+  };
+
+  const deleteLead = async (leadId: string) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      toast({ title: 'Lead deleted successfully' });
+      fetchLeads();
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      toast({ title: 'Error deleting lead', variant: 'destructive' });
     }
   };
 
@@ -357,7 +375,7 @@ const AdminLeads = () => {
                   )}
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -396,6 +414,33 @@ const AdminLeads = () => {
                       <SelectItem value="lost">Lost</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this lead? This action cannot be undone.
+                          Lead: {lead.name} ({lead.email})
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => deleteLead(lead.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete Lead
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </CardContent>
