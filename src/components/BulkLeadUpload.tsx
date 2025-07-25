@@ -44,13 +44,13 @@ const BulkLeadUpload = ({ isOpen, onOpenChange, onUploadComplete }: BulkLeadUplo
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
           
-          // Skip the first row (headers) and process the data
+          // Skip the first row (headers) and process only the 4 basic fields
           const leads: LeadData[] = jsonData.slice(1).map((row: any[]) => ({
-            name: row[0] || '',
-            email: row[1] || '',
-            mobile: row[2] || '',
-            city: row[3] || ''
-          })).filter(lead => lead.name && lead.mobile); // Filter out empty rows
+            name: String(row[0] || '').trim(),
+            email: String(row[1] || '').trim(),
+            mobile: String(row[2] || '').trim(),
+            city: String(row[3] || '').trim()
+          })).filter(lead => lead.name && lead.mobile && lead.city); // Filter out incomplete rows
           
           resolve(leads);
         } catch (error) {
@@ -107,6 +107,21 @@ const BulkLeadUpload = ({ isOpen, onOpenChange, onUploadComplete }: BulkLeadUplo
           <DialogTitle>Bulk Upload Leads</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-800 mb-2">Excel File Format</h4>
+            <p className="text-sm text-blue-700 mb-2">
+              Your Excel file should have exactly 4 columns in this order:
+            </p>
+            <ol className="text-sm text-blue-700 list-decimal list-inside space-y-1">
+              <li><strong>Name</strong> (required)</li>
+              <li><strong>Email</strong> (optional)</li>
+              <li><strong>Phone/Mobile</strong> (required)</li>
+              <li><strong>City</strong> (required)</li>
+            </ol>
+            <p className="text-xs text-blue-600 mt-2">
+              Note: The first row will be treated as headers and ignored. Additional details like budget, requirements etc. will be filled later when users contact the leads.
+            </p>
+          </div>
           <div>
             <Label htmlFor="excel-file">Upload Excel File</Label>
             <Input
@@ -116,7 +131,7 @@ const BulkLeadUpload = ({ isOpen, onOpenChange, onUploadComplete }: BulkLeadUplo
               onChange={handleFileChange}
             />
             <p className="text-sm text-muted-foreground mt-2">
-              File should have columns: Name, Email, Phone, City (first row will be ignored as headers)
+              Upload an Excel file (.xlsx or .xls) with lead information
             </p>
           </div>
           {file && (
