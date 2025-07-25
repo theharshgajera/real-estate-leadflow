@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, UserPlus, Upload, Edit } from 'lucide-react';
+import { Plus, Search, UserPlus, Upload, Edit, Download } from 'lucide-react';
 import BulkLeadUpload from '@/components/BulkLeadUpload';
 import UpdateLeadDialog from '@/components/UpdateLeadDialog';
+import DataExportDialog from '@/components/DataExportDialog';
 
 interface Lead {
   id: string;
@@ -39,6 +40,7 @@ const AdminLeads = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const { toast } = useToast();
@@ -172,6 +174,10 @@ const AdminLeads = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Leads</h1>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsExportOpen(true)}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Data
+          </Button>
           <Button onClick={() => setIsBulkUploadOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Bulk Upload
@@ -245,6 +251,11 @@ const AdminLeads = () => {
         isOpen={isUpdateOpen}
         onOpenChange={setIsUpdateOpen}
         onUpdateComplete={fetchLeads}
+      />
+
+      <DataExportDialog
+        isOpen={isExportOpen}
+        onOpenChange={setIsExportOpen}
       />
 
       <div className="flex gap-4">

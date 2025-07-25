@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Calendar, Search, Phone, Mail, MapPin } from 'lucide-react';
+import { Edit, Calendar, Search, Phone, Mail, MapPin, CalendarPlus } from 'lucide-react';
 import SiteVisitScheduleDialog from '@/components/SiteVisitScheduleDialog';
 import UpdateLeadDialog from '@/components/UpdateLeadDialog';
 
@@ -238,7 +238,7 @@ const UserLeads = () => {
                   )}
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -246,6 +246,19 @@ const UserLeads = () => {
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Update Lead
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedLead(lead);
+                      setIsSiteVisitOpen(true);
+                    }}
+                    className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                  >
+                    <CalendarPlus className="h-4 w-4 mr-2" />
+                    Schedule Visit
                   </Button>
                   
                   <Select onValueChange={(status: 'new' | 'assigned' | 'in_progress' | 'site_visit_scheduled' | 'site_visit_done' | 'converted' | 'lost') => handleStatusChange(lead, status)}>
