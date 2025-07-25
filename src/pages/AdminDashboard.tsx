@@ -1,29 +1,49 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Calendar, TrendingUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, FileText, Calendar, TrendingUp, UserCheck, Clock, CheckCircle } from 'lucide-react';
 
 interface DashboardStats {
   totalLeads: number;
   newLeads: number;
+  inProgressLeads: number;
   convertedLeads: number;
   totalUsers: number;
   todayTasks: number;
+}
+
+interface UserStats {
+  userId: string;
+  userName: string;
+  assignedLeads: number;
+  convertedLeads: number;
 }
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     newLeads: 0,
+    inProgressLeads: 0,
     convertedLeads: 0,
     totalUsers: 0,
     todayTasks: 0,
   });
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchUserStats(selectedUserId);
+    }
+  }, [selectedUserId]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -37,6 +57,12 @@ const AdminDashboard = () => {
         .from('leads')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'new');
+
+      // Fetch in progress leads
+      const { count: inProgressLeads } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'in_progress');
 
       // Fetch converted leads
       const { count: convertedLeads } = await supabase
@@ -59,6 +85,7 @@ const AdminDashboard = () => {
       setStats({
         totalLeads: totalLeads || 0,
         newLeads: newLeads || 0,
+        inProgressLeads: inProgressLeads || 0,
         convertedLeads: convertedLeads || 0,
         totalUsers: totalUsers || 0,
         todayTasks: todayTasks || 0,
@@ -67,6 +94,53 @@ const AdminDashboard = () => {
       console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('role', 'user');
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchUserStats = async (userId: string) => {
+    try {
+      // Get user info
+      const { data: userData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      // Get assigned leads count
+      const { count: assignedLeads } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', userId);
+
+      // Get converted leads count
+      const { count: convertedLeads } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_to', userId)
+        .eq('status', 'converted');
+
+      setUserStats({
+        userId,
+        userName: userData?.full_name || 'Unknown',
+        assignedLeads: assignedLeads || 0,
+        convertedLeads: convertedLeads || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
     }
   };
 
@@ -80,13 +154,19 @@ const AdminDashboard = () => {
     {
       title: 'New Leads',
       value: stats.newLeads,
-      icon: Users,
+      icon: FileText,
       description: 'Unassigned leads',
+    },
+    {
+      title: 'In Progress',
+      value: stats.inProgressLeads,
+      icon: Clock,
+      description: 'Currently being handled',
     },
     {
       title: 'Converted',
       value: stats.convertedLeads,
-      icon: TrendingUp,
+      icon: CheckCircle,
       description: 'Successfully converted',
     },
     {
@@ -128,7 +208,7 @@ const AdminDashboard = () => {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -145,6 +225,62 @@ const AdminDashboard = () => {
           );
         })}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCheck className="h-5 w-5" />
+            User Performance
+          </CardTitle>
+          <CardDescription>View leads handled by individual users</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a user to view their performance" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {userStats && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Assigned Leads</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{userStats.assignedLeads}</div>
+                  <CardDescription>Total leads assigned to {userStats.userName}</CardDescription>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Converted Leads</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{userStats.convertedLeads}</div>
+                  <CardDescription>
+                    {userStats.assignedLeads > 0 
+                      ? `${Math.round((userStats.convertedLeads / userStats.assignedLeads) * 100)}% conversion rate`
+                      : 'No leads assigned'
+                    }
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
