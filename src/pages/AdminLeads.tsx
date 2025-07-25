@@ -310,6 +310,8 @@ const AdminLeads = () => {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="new">New</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="site_visit_scheduled">Site Visit Scheduled</SelectItem>
+            <SelectItem value="site_visit_done">Site Visit Done</SelectItem>
             <SelectItem value="converted">Converted</SelectItem>
             <SelectItem value="lost">Lost</SelectItem>
           </SelectContent>
