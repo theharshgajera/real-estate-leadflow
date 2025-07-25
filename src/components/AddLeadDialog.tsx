@@ -59,14 +59,15 @@ const AddLeadDialog = ({ isOpen, onOpenChange, onLeadAdded }: AddLeadDialogProps
           professional_background: formData.professional_background || null,
           notes: formData.notes || null,
           quality: formData.quality as 'hot' | 'warm' | 'cold' | null,
-          status: 'new'
+          status: 'assigned',
+          assigned_to: user.id
         });
 
       if (error) throw error;
 
       toast({
         title: 'Lead added successfully',
-        description: 'The lead has been added and is available for assignment'
+        description: 'The lead has been assigned to you automatically'
       });
 
       // Reset form

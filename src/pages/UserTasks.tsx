@@ -93,6 +93,10 @@ const UserTasks = () => {
 
     try {
       const today = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('site_visits')
         .select(`
@@ -106,8 +110,9 @@ const UserTasks = () => {
           )
         `)
         .eq('leads.assigned_to', user.id)
-        .eq('scheduled_date', today)
+        .in('scheduled_date', [today, tomorrowStr])
         .eq('completed', false)
+        .order('scheduled_date', { ascending: true })
         .order('scheduled_time', { ascending: true });
 
       if (error) throw error;
@@ -253,7 +258,7 @@ const UserTasks = () => {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-purple-800 flex items-center gap-2">
             <MapPin className="h-5 w-5" />
-            Site Visits Today ({siteVisits.length})
+            Site Visits Today & Tomorrow ({siteVisits.length})
           </h2>
           <div className="grid gap-4">
             {siteVisits.map((visit) => (
@@ -263,6 +268,10 @@ const UserTasks = () => {
                     <div>
                       <CardTitle className="text-lg text-purple-800">{visit.leads?.name}</CardTitle>
                       <CardDescription className="flex items-center gap-4 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(visit.scheduled_date).toLocaleDateString()}
+                        </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {visit.scheduled_time}
