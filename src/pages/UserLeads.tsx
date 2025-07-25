@@ -128,6 +128,8 @@ const UserLeads = () => {
     switch (status) {
       case 'new': return 'bg-blue-500';
       case 'in_progress': return 'bg-yellow-500';
+      case 'site_visit_scheduled': return 'bg-purple-500';
+      case 'site_visit_done': return 'bg-indigo-500';
       case 'converted': return 'bg-green-500';
       case 'lost': return 'bg-red-500';
       default: return 'bg-gray-500';
@@ -176,6 +178,8 @@ const UserLeads = () => {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="new">New</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="site_visit_scheduled">Site Visit Scheduled</SelectItem>
+            <SelectItem value="site_visit_done">Site Visit Done</SelectItem>
             <SelectItem value="converted">Converted</SelectItem>
             <SelectItem value="lost">Lost</SelectItem>
           </SelectContent>
@@ -277,6 +281,8 @@ const UserLeads = () => {
                 <SelectContent>
                   <SelectItem value="new">New</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="site_visit_scheduled">Site Visit Scheduled</SelectItem>
+                  <SelectItem value="site_visit_done">Site Visit Done</SelectItem>
                   <SelectItem value="converted">Converted</SelectItem>
                   <SelectItem value="lost">Lost</SelectItem>
                 </SelectContent>
