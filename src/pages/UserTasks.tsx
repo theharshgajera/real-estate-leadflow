@@ -37,10 +37,22 @@ interface SiteVisit {
   };
 }
 
+interface FollowUpLead {
+  id: string;
+  name: string;
+  email: string;
+  mobile: string;
+  city: string;
+  status: string;
+  followup_date: string;
+  notes: string;
+}
+
 const UserTasks = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [siteVisits, setSiteVisits] = useState<SiteVisit[]>([]);
+  const [followUpLeads, setFollowUpLeads] = useState<FollowUpLead[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -48,6 +60,7 @@ const UserTasks = () => {
     if (user) {
       fetchTasks();
       fetchTodaysSiteVisits();
+      fetchTodaysFollowUps();
     }
   }, [user]);
 
@@ -101,6 +114,25 @@ const UserTasks = () => {
       setSiteVisits(data || []);
     } catch (error) {
       console.error('Error fetching site visits:', error);
+    }
+  };
+
+  const fetchTodaysFollowUps = async () => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, name, email, mobile, city, status, followup_date, notes')
+        .eq('assigned_to', user.id)
+        .eq('followup_date', today)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setFollowUpLeads(data || []);
+    } catch (error) {
+      console.error('Error fetching follow-up leads:', error);
     }
   };
 
@@ -165,6 +197,56 @@ const UserTasks = () => {
           })}
         </div>
       </div>
+
+      {/* Follow-up Leads Section */}
+      {followUpLeads.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-blue-800 flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Follow-up Leads Today ({followUpLeads.length})
+          </h2>
+          <div className="grid gap-4">
+            {followUpLeads.map((lead) => (
+              <Card key={lead.id} className="border-blue-200">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg text-blue-800">{lead.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-4 mt-1">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {lead.city}
+                        </span>
+                        <span className="text-xs bg-blue-100 px-2 py-1 rounded">
+                          {lead.status.replace('_', ' ')}
+                        </span>
+                      </CardDescription>
+                    </div>
+                    <Badge className="bg-blue-500">Follow-up</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Contact:</strong> {lead.mobile}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {lead.email || 'Not provided'}
+                      </div>
+                    </div>
+                    {lead.notes && (
+                      <div className="text-sm">
+                        <strong>Notes:</strong> {lead.notes}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Site Visits Section */}
       {siteVisits.length > 0 && (
@@ -282,15 +364,15 @@ const UserTasks = () => {
             </Card>
           ))}
         </div>
-        {tasks.length === 0 && siteVisits.length === 0 && (
+        {tasks.length === 0 && siteVisits.length === 0 && followUpLeads.length === 0 && (
           <Card>
             <CardContent className="text-center py-8">
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No tasks or site visits scheduled for today.</p>
+              <p className="text-muted-foreground">No tasks, site visits, or follow-ups scheduled for today.</p>
             </CardContent>
           </Card>
         )}
-        {tasks.length === 0 && siteVisits.length > 0 && (
+        {tasks.length === 0 && (siteVisits.length > 0 || followUpLeads.length > 0) && (
           <Card>
             <CardContent className="text-center py-8">
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
